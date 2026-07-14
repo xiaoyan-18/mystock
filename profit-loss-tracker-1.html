@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Shop Profit & Loss Tracker</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root{
+    --bg:#0f172a; --panel:#ffffff; --accent:#16a34a; --accent-dark:#15803d;
+    --loss:#dc2626; --text:#1e293b; --muted:#64748b; --border:#e2e8f0;
+    --profit-bg:#ecfdf5; --loss-bg:#fef2f2;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;font-family:'Segoe UI',Roboto,Arial,sans-serif;}
+  body{background:#f1f5f9;color:var(--text);min-height:100vh;}
+
+  /* Login */
+  #loginScreen{position:fixed;inset:0;background:linear-gradient(135deg,#0f172a,#1e293b);display:flex;align-items:center;justify-content:center;z-index:999;}
+  .loginBox{background:#fff;padding:40px 32px;border-radius:16px;width:320px;text-align:center;box-shadow:0 20px 50px rgba(0,0,0,.3);}
+  .loginBox h1{font-size:22px;margin-bottom:6px;color:#0f172a;}
+  .loginBox p{color:var(--muted);font-size:13px;margin-bottom:20px;}
+  .loginBox input{width:100%;padding:12px;border:1px solid var(--border);border-radius:8px;font-size:15px;margin-bottom:12px;text-align:center;letter-spacing:2px;}
+  .loginBox button{width:100%;padding:12px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;}
+  .loginBox button:hover{background:var(--accent-dark);}
+  .loginErr{color:var(--loss);font-size:12px;margin-top:8px;min-height:16px;}
+
+  /* App */
+  #app{display:none;}
+  header{background:#0f172a;color:#fff;padding:16px 20px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;}
+  header h1{font-size:19px;font-weight:600;}
+  header .sub{font-size:12px;color:#94a3b8;}
+  .logoutBtn{background:#334155;color:#fff;border:none;padding:8px 14px;border-radius:6px;cursor:pointer;font-size:13px;}
+  .logoutBtn:hover{background:#475569;}
+
+  nav{display:flex;background:#1e293b;overflow-x:auto;}
+  nav button{flex:1;min-width:100px;padding:13px 10px;background:none;border:none;color:#cbd5e1;font-size:13px;cursor:pointer;font-weight:500;white-space:nowrap;border-bottom:3px solid transparent;}
+  nav button.active{color:#fff;border-bottom:3px solid var(--accent);background:#0f172a;}
+  nav button:hover{background:#334155;}
+
+  main{max-width:1100px;margin:0 auto;padding:20px;}
+  .tab{display:none;}
+  .tab.active{display:block;animation:fade .25s ease;}
+  @keyframes fade{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:translateY(0);}}
+
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:20px;}
+  .card{background:var(--panel);border-radius:12px;padding:16px 18px;box-shadow:0 1px 3px rgba(0,0,0,.08);border:1px solid var(--border);}
+  .card .label{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;}
+  .card .value{font-size:22px;font-weight:700;}
+  .card.profit .value{color:var(--accent);}
+  .card.loss .value{color:var(--loss);}
+  .card.neutral .value{color:#0f172a;}
+
+  .panel{background:var(--panel);border-radius:12px;padding:18px;box-shadow:0 1px 3px rgba(0,0,0,.08);border:1px solid var(--border);margin-bottom:18px;}
+  .panel h2{font-size:16px;margin-bottom:14px;color:#0f172a;}
+
+  .formGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:12px;}
+  label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px;}
+  input,select{width:100%;padding:9px 10px;border:1px solid var(--border);border-radius:7px;font-size:14px;}
+  input:focus,select:focus{outline:2px solid var(--accent);border-color:var(--accent);}
+  .btnRow{display:flex;gap:10px;flex-wrap:wrap;}
+  .btn{padding:10px 18px;border:none;border-radius:7px;font-size:14px;font-weight:600;cursor:pointer;}
+  .btn-primary{background:var(--accent);color:#fff;}
+  .btn-primary:hover{background:var(--accent-dark);}
+  .btn-secondary{background:#e2e8f0;color:#0f172a;}
+  .btn-secondary:hover{background:#cbd5e1;}
+  .btn-danger{background:#fee2e2;color:var(--loss);}
+  .btn-danger:hover{background:#fecaca;}
+  .btn-small{padding:5px 10px;font-size:12px;border-radius:5px;}
+
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  th,td{padding:9px 8px;text-align:left;border-bottom:1px solid var(--border);}
+  th{color:var(--muted);font-weight:600;font-size:11px;text-transform:uppercase;}
+  tr:hover{background:#f8fafc;}
+  .tableWrap{overflow-x:auto;}
+  .rowProfit{color:var(--accent);font-weight:600;}
+  .rowLoss{color:var(--loss);font-weight:600;}
+  .emptyState{text-align:center;color:var(--muted);padding:30px;font-size:13px;}
+
+  .filterRow{display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:14px;}
+  .filterRow > div{flex:1;min-width:130px;}
+
+  .chartBox{position:relative;height:280px;margin-top:10px;}
+
+  .badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;}
+  .badge-profit{background:var(--profit-bg);color:var(--accent);}
+  .badge-loss{background:var(--loss-bg);color:var(--loss);}
+
+  .backupBox{display:flex;gap:10px;flex-wrap:wrap;}
+  #restoreFile{display:none;}
+  .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#0f172a;color:#fff;padding:12px 22px;border-radius:8px;font-size:13px;opacity:0;pointer-events:none;transition:opacity .3s;z-index:1000;}
+  .toast.show{opacity:1;}
+  .del{cursor:pointer;color:var(--loss);font-size:12px;}
+  .del:hover{text-decoration:underline;}
+
+  @media(max-width:600px){
+    header h1{font-size:16px;}
+    .card .value{font-size:18px;}
+  }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="loginScreen">
+  <div class="loginBox">
+    <h1>🏪 Shop P&amp;L Tracker</h1>
+    <p>Enter your PIN to continue</p>
+    <input type="password" id="pinInput" maxlength="6" placeholder="Enter PIN" inputmode="numeric">
+    <button onclick="tryLogin()">Login</button>
+    <div class="loginErr" id="loginErr"></div>
+    <p style="margin-top:14px;font-size:11px;color:#94a3b8;">Default PIN: 1234 (change it in Settings after login)</p>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <header>
+    <div>
+      <h1 id="shopNameDisplay">🏪 Shop Profit &amp; Loss Tracker</h1>
+      <div class="sub" id="todayDate"></div>
+    </div>
+    <button class="logoutBtn" onclick="logout()">Logout</button>
+  </header>
+
+  <nav>
+    <button class="navBtn active" data-tab="dashboard">Dashboard</button>
+    <button class="navBtn" data-tab="sales">Sales</button>
+    <button class="navBtn" data-tab="purchases">Purchases</button>
+    <button class="navBtn" data-tab="expenses">Expenses</button>
+    <button class="navBtn" data-tab="balances">Balances</button>
+    <button class="navBtn" data-tab="reports">Reports</button>
+    <button class="navBtn" data-tab="settings">Settings</button>
+  </nav>
+
+  <main>
+
+    <!-- DASHBOARD -->
+    <div class="tab active" id="tab-dashboard">
+      <div class="cards" id="dashCards"></div>
+      <div class="panel">
+        <h2>Profit / Loss Trend (Last 14 Days)</h2>
+        <div class="chartBox"><canvas id="trendChart"></canvas></div>
+      </div>
+      <div class="panel">
+        <h2>Recent Activity</h2>
+        <div class="tableWrap"><table id="recentTable"><thead>
+          <tr><th>Date</th><th>Type</th><th>Details</th><th>Amount</th></tr>
+        </thead><tbody></tbody></table></div>
+      </div>
+    </div>
+
+    <!-- SALES -->
+    <div class="tab" id="tab-sales">
+      <div class="panel">
+        <h2>Add Sale</h2>
+        <div class="formGrid">
+          <div><label>Date</label><input type="date" id="saleDate"></div>
+          <div><label>Item Name</label><input type="text" id="saleItem" placeholder="e.g. Silk Saree"></div>
+          <div><label>Quantity</label><input type="number" id="saleQty" value="1" min="1"></div>
+          <div><label>Selling Price (per unit)</label><input type="number" id="saleSellPrice" placeholder="₹"></div>
+          <div><label>Cost Price (per unit)</label><input type="number" id="saleCostPrice" placeholder="₹"></div>
+          <div><label>Note (optional)</label><input type="text" id="saleNote" placeholder="Customer / remarks"></div>
+        </div>
+        <div class="btnRow"><button class="btn btn-primary" onclick="addSale()">Add Sale</button></div>
+      </div>
+      <div class="panel">
+        <h2>Sales Records</h2>
+        <div class="tableWrap"><table id="salesTable"><thead>
+          <tr><th>Date</th><th>Item</th><th>Qty</th><th>Sell ₹</th><th>Cost ₹</th><th>Revenue</th><th>Profit</th><th>Customer</th><th></th></tr>
+        </thead><tbody></tbody></table></div>
+      </div>
+    </div>
+
+    <!-- PURCHASES -->
+    <div class="tab" id="tab-purchases">
+      <div class="panel">
+        <h2>Add Purchase / Stock Cost</h2>
+        <div class="formGrid">
+          <div><label>Date</label><input type="date" id="purDate"></div>
+          <div><label>Item Name</label><input type="text" id="purItem" placeholder="e.g. Raw Silk Fabric"></div>
+          <div><label>Quantity</label><input type="number" id="purQty" value="1" min="1"></div>
+          <div><label>Cost Price (per unit)</label><input type="number" id="purCostPrice" placeholder="₹"></div>
+          <div><label>Supplier (optional)</label><input type="text" id="purSupplier" placeholder="Supplier name"></div>
+        </div>
+        <div class="btnRow"><button class="btn btn-primary" onclick="addPurchase()">Add Purchase</button></div>
+      </div>
+      <div class="panel">
+        <h2>Purchase Records</h2>
+        <div class="tableWrap"><table id="purchasesTable"><thead>
+          <tr><th>Date</th><th>Item</th><th>Qty</th><th>Cost ₹</th><th>Total</th><th>Supplier</th><th></th></tr>
+        </thead><tbody></tbody></table></div>
+      </div>
+    </div>
+
+    <!-- EXPENSES -->
+    <div class="tab" id="tab-expenses">
+      <div class="panel">
+        <h2>Add Expense</h2>
+        <div class="formGrid">
+          <div><label>Date</label><input type="date" id="expDate"></div>
+          <div><label>Category</label>
+            <select id="expCategory">
+              <option>Rent</option><option>Electricity</option><option>Staff Salary</option>
+              <option>Transport</option><option>Packaging</option><option>Marketing</option>
+              <option>Maintenance</option><option>Other</option>
+            </select>
+          </div>
+          <div><label>Amount</label><input type="number" id="expAmount" placeholder="₹"></div>
+          <div><label>Note (optional)</label><input type="text" id="expNote" placeholder="Details"></div>
+        </div>
+        <div class="btnRow"><button class="btn btn-primary" onclick="addExpense()">Add Expense</button></div>
+      </div>
+      <div class="panel">
+        <h2>Expense Records</h2>
+        <div class="tableWrap"><table id="expensesTable"><thead>
+          <tr><th>Date</th><th>Category</th><th>Amount</th><th>Note</th><th></th></tr>
+        </thead><tbody></tbody></table></div>
+      </div>
+    </div>
+
+    <!-- BALANCES -->
+    <div class="tab" id="tab-balances">
+      <div class="cards" id="balanceCards"></div>
+      <div class="panel">
+        <h2>Add Balance Entry</h2>
+        <div class="formGrid">
+          <div><label>Date</label><input type="date" id="balDate"></div>
+          <div><label>Type</label>
+            <select id="balType">
+              <option value="receivable">Customer owes shop (To Receive)</option>
+              <option value="payable">Shop owes someone (To Pay)</option>
+            </select>
+          </div>
+          <div><label>Party Name</label><input type="text" id="balParty" placeholder="Customer / supplier name"></div>
+          <div><label>Amount</label><input type="number" id="balAmount" placeholder="₹"></div>
+          <div><label>Note (optional)</label><input type="text" id="balNote" placeholder="Reason / details"></div>
+        </div>
+        <div class="btnRow"><button class="btn btn-primary" onclick="addBalance()">Add Entry</button></div>
+      </div>
+      <div class="panel">
+        <h2>Balance Records</h2>
+        <div class="tableWrap"><table id="balancesTable"><thead>
+          <tr><th>Date</th><th>Type</th><th>Party</th><th>Amount</th><th>Note</th><th>Status</th><th></th></tr>
+        </thead><tbody></tbody></table></div>
+      </div>
+    </div>
+
+    <!-- REPORTS -->
+    <div class="tab" id="tab-reports">
+      <div class="panel">
+        <h2>Filter Report</h2>
+        <div class="filterRow">
+          <div><label>From</label><input type="date" id="repFrom"></div>
+          <div><label>To</label><input type="date" id="repTo"></div>
+          <div><button class="btn btn-primary" onclick="runReport()">Generate</button></div>
+          <div><button class="btn btn-secondary" onclick="setQuickRange('month')">This Month</button></div>
+          <div><button class="btn btn-secondary" onclick="setQuickRange('today')">Today</button></div>
+        </div>
+      </div>
+      <div class="cards" id="reportCards"></div>
+      <div class="panel">
+        <h2>Category-wise Expense Breakdown</h2>
+        <div class="chartBox"><canvas id="expenseChart"></canvas></div>
+      </div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div class="tab" id="tab-settings">
+      <div class="panel">
+        <h2>Shop Details</h2>
+        <div class="formGrid">
+          <div><label>Shop Name</label><input type="text" id="settingsShopName"></div>
+          <div><label>Change PIN</label><input type="password" id="settingsPin" maxlength="6" placeholder="New PIN"></div>
+        </div>
+        <div class="btnRow"><button class="btn btn-primary" onclick="saveSettings()">Save Settings</button></div>
+      </div>
+      <div class="panel">
+        <h2>Live JSON File Storage</h2>
+        <p style="font-size:13px;color:var(--muted);margin-bottom:8px;">Link a JSON file on your device — every sale, purchase, or expense will auto-save to it instantly, in addition to being saved in the browser.</p>
+        <p id="fileStatus" style="font-size:12px;font-weight:600;margin-bottom:12px;color:var(--accent);"></p>
+        <div class="backupBox">
+          <button class="btn btn-primary" onclick="linkJsonFile()">🔗 Link / Create JSON File</button>
+          <button class="btn btn-secondary" onclick="openJsonFile()">📂 Open Existing JSON File</button>
+        </div>
+      </div>
+      <div class="panel">
+        <h2>Backup &amp; Restore (Manual)</h2>
+        <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">Download a backup file to save your data or share it via WhatsApp. Restore it later on this or any device. Use this if your browser doesn't support Live JSON File Storage above.</p>
+        <div class="backupBox">
+          <button class="btn btn-primary" onclick="downloadBackup()">⬇ Download Backup</button>
+          <button class="btn btn-secondary" onclick="document.getElementById('restoreFile').click()">⬆ Restore from Backup</button>
+          <input type="file" id="restoreFile" accept=".json" onchange="restoreBackup(event)">
+        </div>
+      </div>
+      <div class="panel">
+        <h2>Danger Zone</h2>
+        <div class="btnRow"><button class="btn btn-danger" onclick="clearAllData()">Clear All Data</button></div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div id="confirmModal" style="position:fixed;inset:0;background:rgba(15,23,42,.55);display:none;align-items:center;justify-content:center;z-index:2000;">
+  <div style="background:#fff;padding:24px;border-radius:12px;max-width:320px;width:90%;text-align:center;box-shadow:0 20px 50px rgba(0,0,0,.3);">
+    <p id="confirmMsg" style="margin-bottom:20px;font-size:14px;color:#1e293b;line-height:1.5;"></p>
+    <div style="display:flex;gap:10px;justify-content:center;">
+      <button class="btn btn-secondary" onclick="closeConfirm(false)">Cancel</button>
+      <button class="btn btn-danger" onclick="closeConfirm(true)">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ---------- DATA LAYER ---------- */
+const DB_KEY = 'shopPnLData';
+function loadData(){
+  const d = localStorage.getItem(DB_KEY);
+  if(d){
+    const parsed = JSON.parse(d);
+    if(!parsed.balances) parsed.balances = [];
+    return parsed;
+  }
+  return { pin:'1234', shopName:'My Shop', sales:[], purchases:[], expenses:[], balances:[] };
+}
+let data = loadData();
+function saveData(){ localStorage.setItem(DB_KEY, JSON.stringify(data)); writeToFile(); }
+
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 2200);
+}
+let confirmResolve = null;
+function showConfirm(msg){
+  document.getElementById('confirmMsg').textContent = msg;
+  document.getElementById('confirmModal').style.display = 'flex';
+  return new Promise(resolve=>{ confirmResolve = resolve; });
+}
+function closeConfirm(result){
+  document.getElementById('confirmModal').style.display = 'none';
+  if(confirmResolve) confirmResolve(result);
+  confirmResolve = null;
+}
+function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+function todayStr(){ return new Date().toISOString().split('T')[0]; }
+function fmt(n){ return '₹' + Number(n||0).toLocaleString('en-IN',{maximumFractionDigits:2}); }
+
+/* ---------- LOGIN ---------- */
+function tryLogin(){
+  const val = document.getElementById('pinInput').value;
+  if(val === data.pin){
+    document.getElementById('loginScreen').style.display='none';
+    document.getElementById('app').style.display='block';
+    initApp();
+  } else {
+    document.getElementById('loginErr').textContent = 'Incorrect PIN. Try again.';
+  }
+}
+document.getElementById('pinInput').addEventListener('keydown', e=>{ if(e.key==='Enter') tryLogin(); });
+function logout(){
+  document.getElementById('app').style.display='none';
+  document.getElementById('loginScreen').style.display='flex';
+  document.getElementById('pinInput').value='';
+  document.getElementById('loginErr').textContent='';
+}
+
+/* ---------- NAV ---------- */
+document.querySelectorAll('.navBtn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.navBtn').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-'+btn.dataset.tab).classList.add('active');
+    if(btn.dataset.tab==='dashboard') renderDashboard();
+    if(btn.dataset.tab==='reports') runReport();
+    if(btn.dataset.tab==='balances') renderBalances();
+  });
+});
+
+/* ---------- INIT ---------- */
+function initApp(){
+  document.getElementById('shopNameDisplay').textContent = '🏪 ' + data.shopName;
+  document.getElementById('todayDate').textContent = new Date().toLocaleDateString('en-IN',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+  document.getElementById('saleDate').value = todayStr();
+  document.getElementById('purDate').value = todayStr();
+  document.getElementById('expDate').value = todayStr();
+  document.getElementById('balDate').value = todayStr();
+  document.getElementById('settingsShopName').value = data.shopName;
+  renderDashboard();
+  renderSales();
+  renderPurchases();
+  renderExpenses();
+  renderBalances();
+  tryRestoreHandle();
+}
+
+/* ---------- SALES ---------- */
+function addSale(){
+  const item = document.getElementById('saleItem').value.trim();
+  const qty = parseFloat(document.getElementById('saleQty').value) || 1;
+  const sell = parseFloat(document.getElementById('saleSellPrice').value) || 0;
+  const cost = parseFloat(document.getElementById('saleCostPrice').value) || 0;
+  const date = document.getElementById('saleDate').value || todayStr();
+  const note = document.getElementById('saleNote').value.trim();
+  if(!item || sell<=0){ toast('Enter item name and selling price'); return; }
+  data.sales.push({id:uid(), date, item, qty, sell, cost, note});
+  saveData();
+  ['saleItem','saleSellPrice','saleCostPrice','saleNote'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('saleQty').value=1;
+  renderSales(); renderDashboard();
+  toast('Sale added');
+}
+function deleteSale(id){
+  data.sales = data.sales.filter(s=>s.id!==id);
+  saveData(); renderSales(); renderDashboard();
+}
+function renderSales(){
+  const tbody = document.querySelector('#salesTable tbody');
+  tbody.innerHTML='';
+  if(data.sales.length===0){ tbody.innerHTML='<tr><td colspan="9" class="emptyState">No sales recorded yet</td></tr>'; return; }
+  [...data.sales].sort((a,b)=>b.date.localeCompare(a.date)).forEach(s=>{
+    const revenue = s.qty*s.sell;
+    const profit = revenue - (s.qty*s.cost);
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${s.date}</td><td>${s.item}</td><td>${s.qty}</td><td>${fmt(s.sell)}</td><td>${fmt(s.cost)}</td><td>${fmt(revenue)}</td>
+      <td class="${profit>=0?'rowProfit':'rowLoss'}">${fmt(profit)}</td><td>${s.note||'-'}</td><td><span class="del" onclick="deleteSale('${s.id}')">✕</span></td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+/* ---------- PURCHASES ---------- */
+function addPurchase(){
+  const item = document.getElementById('purItem').value.trim();
+  const qty = parseFloat(document.getElementById('purQty').value) || 1;
+  const cost = parseFloat(document.getElementById('purCostPrice').value) || 0;
+  const date = document.getElementById('purDate').value || todayStr();
+  const supplier = document.getElementById('purSupplier').value.trim();
+  if(!item || cost<=0){ toast('Enter item name and cost price'); return; }
+  data.purchases.push({id:uid(), date, item, qty, cost, supplier});
+  saveData();
+  ['purItem','purCostPrice','purSupplier'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('purQty').value=1;
+  renderPurchases(); renderDashboard();
+  toast('Purchase added');
+}
+function deletePurchase(id){
+  data.purchases = data.purchases.filter(p=>p.id!==id);
+  saveData(); renderPurchases(); renderDashboard();
+}
+function renderPurchases(){
+  const tbody = document.querySelector('#purchasesTable tbody');
+  tbody.innerHTML='';
+  if(data.purchases.length===0){ tbody.innerHTML='<tr><td colspan="7" class="emptyState">No purchases recorded yet</td></tr>'; return; }
+  [...data.purchases].sort((a,b)=>b.date.localeCompare(a.date)).forEach(p=>{
+    const total = p.qty*p.cost;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${p.date}</td><td>${p.item}</td><td>${p.qty}</td><td>${fmt(p.cost)}</td><td>${fmt(total)}</td><td>${p.supplier||'-'}</td><td><span class="del" onclick="deletePurchase('${p.id}')">✕</span></td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+/* ---------- EXPENSES ---------- */
+function addExpense(){
+  const category = document.getElementById('expCategory').value;
+  const amount = parseFloat(document.getElementById('expAmount').value) || 0;
+  const date = document.getElementById('expDate').value || todayStr();
+  const note = document.getElementById('expNote').value.trim();
+  if(amount<=0){ toast('Enter a valid amount'); return; }
+  data.expenses.push({id:uid(), date, category, amount, note});
+  saveData();
+  document.getElementById('expAmount').value=''; document.getElementById('expNote').value='';
+  renderExpenses(); renderDashboard();
+  toast('Expense added');
+}
+function deleteExpense(id){
+  data.expenses = data.expenses.filter(e=>e.id!==id);
+  saveData(); renderExpenses(); renderDashboard();
+}
+function renderExpenses(){
+  const tbody = document.querySelector('#expensesTable tbody');
+  tbody.innerHTML='';
+  if(data.expenses.length===0){ tbody.innerHTML='<tr><td colspan="5" class="emptyState">No expenses recorded yet</td></tr>'; return; }
+  [...data.expenses].sort((a,b)=>b.date.localeCompare(a.date)).forEach(e=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${e.date}</td><td>${e.category}</td><td>${fmt(e.amount)}</td><td>${e.note||'-'}</td><td><span class="del" onclick="deleteExpense('${e.id}')">✕</span></td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+/* ---------- BALANCES ---------- */
+function addBalance(){
+  const date = document.getElementById('balDate').value || todayStr();
+  const type = document.getElementById('balType').value;
+  const party = document.getElementById('balParty').value.trim();
+  const amount = parseFloat(document.getElementById('balAmount').value) || 0;
+  const note = document.getElementById('balNote').value.trim();
+  if(!party || amount<=0){ toast('Enter party name and a valid amount'); return; }
+  data.balances.push({id:uid(), date, type, party, amount, note, status:'pending'});
+  saveData();
+  ['balParty','balAmount','balNote'].forEach(id=>document.getElementById(id).value='');
+  renderBalances(); renderDashboard();
+  toast('Balance entry added');
+}
+function deleteBalance(id){
+  data.balances = data.balances.filter(b=>b.id!==id);
+  saveData(); renderBalances(); renderDashboard();
+}
+function toggleBalanceStatus(id){
+  const b = data.balances.find(x=>x.id===id);
+  if(b){ b.status = b.status==='pending' ? 'settled' : 'pending'; }
+  saveData(); renderBalances(); renderDashboard();
+}
+function renderBalances(){
+  const toReceive = data.balances.filter(b=>b.type==='receivable' && b.status==='pending').reduce((s,x)=>s+x.amount,0);
+  const toPay = data.balances.filter(b=>b.type==='payable' && b.status==='pending').reduce((s,x)=>s+x.amount,0);
+  document.getElementById('balanceCards').innerHTML = `
+    <div class="card profit"><div class="label">To Receive from Customers</div><div class="value">${fmt(toReceive)}</div></div>
+    <div class="card loss"><div class="label">To Pay to Others</div><div class="value">${fmt(toPay)}</div></div>
+  `;
+  const tbody = document.querySelector('#balancesTable tbody');
+  tbody.innerHTML='';
+  if(data.balances.length===0){ tbody.innerHTML='<tr><td colspan="7" class="emptyState">No balance entries yet</td></tr>'; return; }
+  [...data.balances].sort((a,b)=>b.date.localeCompare(a.date)).forEach(b=>{
+    const tr = document.createElement('tr');
+    const typeBadge = b.type==='receivable'
+      ? '<span class="badge badge-profit">To Receive</span>'
+      : '<span class="badge badge-loss">To Pay</span>';
+    const statusBadge = b.status==='settled'
+      ? '<span class="badge" style="background:#f1f5f9;color:#64748b;">Settled</span>'
+      : '<span class="badge" style="background:#fff7ed;color:#c2410c;">Pending</span>';
+    tr.innerHTML = `<td>${b.date}</td><td>${typeBadge}</td><td>${b.party}</td><td>${fmt(b.amount)}</td><td>${b.note||'-'}</td>
+      <td><span class="badge" style="cursor:pointer;" onclick="toggleBalanceStatus('${b.id}')">${statusBadge}</span></td>
+      <td><span class="del" onclick="deleteBalance('${b.id}')">✕</span></td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+/* ---------- DASHBOARD ---------- */
+let trendChartInstance = null;
+function renderDashboard(){
+  const totalRevenue = data.sales.reduce((s,x)=>s+x.qty*x.sell,0);
+  const totalSaleCost = data.sales.reduce((s,x)=>s+x.qty*x.cost,0);
+  const totalPurchases = data.purchases.reduce((s,x)=>s+x.qty*x.cost,0);
+  const totalExpenses = data.expenses.reduce((s,x)=>s+x.amount,0);
+  const grossProfit = totalRevenue - totalSaleCost;
+  const netProfit = grossProfit - totalExpenses;
+  const toReceive = data.balances.filter(b=>b.type==='receivable' && b.status==='pending').reduce((s,x)=>s+x.amount,0);
+  const toPay = data.balances.filter(b=>b.type==='payable' && b.status==='pending').reduce((s,x)=>s+x.amount,0);
+
+  const cards = document.getElementById('dashCards');
+  cards.innerHTML = `
+    <div class="card neutral"><div class="label">Total Revenue</div><div class="value">${fmt(totalRevenue)}</div></div>
+    <div class="card neutral"><div class="label">Total Purchases</div><div class="value">${fmt(totalPurchases)}</div></div>
+    <div class="card neutral"><div class="label">Total Expenses</div><div class="value">${fmt(totalExpenses)}</div></div>
+    <div class="card ${netProfit>=0?'profit':'loss'}"><div class="label">${netProfit>=0?'Net Profit':'Net Loss'}</div><div class="value">${fmt(Math.abs(netProfit))}</div></div>
+    <div class="card profit"><div class="label">To Receive (Customer Dues)</div><div class="value">${fmt(toReceive)}</div></div>
+    <div class="card loss"><div class="label">To Pay (Shop Dues)</div><div class="value">${fmt(toPay)}</div></div>
+  `;
+
+  // Trend last 14 days
+  const days = [];
+  for(let i=13;i>=0;i--){
+    const d = new Date(); d.setDate(d.getDate()-i);
+    days.push(d.toISOString().split('T')[0]);
+  }
+  const trend = days.map(day=>{
+    const rev = data.sales.filter(s=>s.date===day).reduce((s,x)=>s+x.qty*x.sell - x.qty*x.cost,0);
+    const exp = data.expenses.filter(e=>e.date===day).reduce((s,x)=>s+x.amount,0);
+    return rev - exp;
+  });
+  const ctx = document.getElementById('trendChart');
+  if(trendChartInstance) trendChartInstance.destroy();
+  trendChartInstance = new Chart(ctx, {
+    type:'line',
+    data:{ labels: days.map(d=>d.slice(5)), datasets:[{
+      label:'Net Profit/Loss', data: trend,
+      borderColor:'#16a34a', backgroundColor:'rgba(22,163,74,0.1)',
+      fill:true, tension:0.3, pointRadius:3
+    }]},
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{ y:{ ticks:{ callback:v=>'₹'+v } } } }
+  });
+
+  // Recent activity
+  const activity = [
+    ...data.sales.map(s=>({date:s.date, type:'Sale', details:s.item+' x'+s.qty, amount:s.qty*s.sell})),
+    ...data.purchases.map(p=>({date:p.date, type:'Purchase', details:p.item+' x'+p.qty, amount:-(p.qty*p.cost)})),
+    ...data.expenses.map(e=>({date:e.date, type:'Expense', details:e.category, amount:-e.amount}))
+  ].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,10);
+  const tbody = document.querySelector('#recentTable tbody');
+  tbody.innerHTML='';
+  if(activity.length===0){ tbody.innerHTML='<tr><td colspan="4" class="emptyState">No activity yet. Start by adding a sale, purchase, or expense.</td></tr>'; }
+  activity.forEach(a=>{
+    const tr=document.createElement('tr');
+    const badge = a.type==='Sale' ? '<span class="badge badge-profit">Sale</span>' : a.type==='Purchase' ? '<span class="badge" style="background:#eff6ff;color:#2563eb;">Purchase</span>' : '<span class="badge badge-loss">Expense</span>';
+    tr.innerHTML = `<td>${a.date}</td><td>${badge}</td><td>${a.details}</td><td class="${a.amount>=0?'rowProfit':'rowLoss'}">${a.amount>=0?fmt(a.amount):'-'+fmt(Math.abs(a.amount))}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+/* ---------- REPORTS ---------- */
+let expenseChartInstance = null;
+function setQuickRange(type){
+  const now = new Date();
+  if(type==='today'){
+    document.getElementById('repFrom').value = todayStr();
+    document.getElementById('repTo').value = todayStr();
+  } else if(type==='month'){
+    const first = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+    document.getElementById('repFrom').value = first;
+    document.getElementById('repTo').value = todayStr();
+  }
+  runReport();
+}
+function runReport(){
+  const from = document.getElementById('repFrom').value || '0000-01-01';
+  const to = document.getElementById('repTo').value || '9999-12-31';
+  const inRange = d => d>=from && d<=to;
+
+  const sales = data.sales.filter(s=>inRange(s.date));
+  const purchases = data.purchases.filter(p=>inRange(p.date));
+  const expenses = data.expenses.filter(e=>inRange(e.date));
+
+  const totalRevenue = sales.reduce((s,x)=>s+x.qty*x.sell,0);
+  const totalSaleCost = sales.reduce((s,x)=>s+x.qty*x.cost,0);
+  const totalPurchases = purchases.reduce((s,x)=>s+x.qty*x.cost,0);
+  const totalExpenses = expenses.reduce((s,x)=>s+x.amount,0);
+  const grossProfit = totalRevenue - totalSaleCost;
+  const netProfit = grossProfit - totalExpenses;
+
+  document.getElementById('reportCards').innerHTML = `
+    <div class="card neutral"><div class="label">Revenue</div><div class="value">${fmt(totalRevenue)}</div></div>
+    <div class="card neutral"><div class="label">Gross Profit</div><div class="value">${fmt(grossProfit)}</div></div>
+    <div class="card neutral"><div class="label">Expenses</div><div class="value">${fmt(totalExpenses)}</div></div>
+    <div class="card ${netProfit>=0?'profit':'loss'}"><div class="label">${netProfit>=0?'Net Profit':'Net Loss'}</div><div class="value">${fmt(Math.abs(netProfit))}</div></div>
+  `;
+
+  const byCat = {};
+  expenses.forEach(e=>{ byCat[e.category] = (byCat[e.category]||0) + e.amount; });
+  const ctx = document.getElementById('expenseChart');
+  if(expenseChartInstance) expenseChartInstance.destroy();
+  expenseChartInstance = new Chart(ctx, {
+    type:'bar',
+    data:{ labels:Object.keys(byCat).length?Object.keys(byCat):['No data'], datasets:[{
+      label:'Expenses', data:Object.keys(byCat).length?Object.values(byCat):[0],
+      backgroundColor:'#dc2626'
+    }]},
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}} }
+  });
+}
+
+/* ---------- SETTINGS ---------- */
+function saveSettings(){
+  const name = document.getElementById('settingsShopName').value.trim();
+  const newPin = document.getElementById('settingsPin').value.trim();
+  if(name) data.shopName = name;
+  if(newPin) data.pin = newPin;
+  saveData();
+  document.getElementById('shopNameDisplay').textContent = '🏪 ' + data.shopName;
+  document.getElementById('settingsPin').value='';
+  toast('Settings saved');
+}
+function downloadBackup(){
+  const blob = new Blob([JSON.stringify(data,null,2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `${data.shopName.replace(/\s+/g,'_')}_PnL_Backup_${todayStr()}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  toast('Backup downloaded');
+}
+function restoreBackup(event){
+  const file = event.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = e=>{
+    try{
+      const parsed = JSON.parse(e.target.result);
+      if(!parsed.sales || !parsed.purchases || !parsed.expenses){ toast('Invalid backup file'); return; }
+      if(!parsed.balances) parsed.balances = [];
+      data = parsed;
+      saveData();
+      initApp();
+      toast('Backup restored successfully');
+    }catch(err){ toast('Failed to read backup file'); }
+  };
+  reader.readAsText(file);
+  event.target.value = '';
+}
+async function clearAllData(){
+  const ok = await showConfirm('This will permanently delete ALL sales, purchases and expenses. This cannot be undone. Continue?');
+  if(ok){
+    data.sales=[]; data.purchases=[]; data.expenses=[]; data.balances=[];
+    saveData();
+    renderDashboard(); renderSales(); renderPurchases(); renderExpenses(); renderBalances();
+    toast('All data cleared');
+  }
+}
+
+/* ---------- LIVE JSON FILE STORAGE (File System Access API) ---------- */
+let fileHandle = null;
+const FS_SUPPORTED = 'showSaveFilePicker' in window;
+
+function idbOpen(){
+  return new Promise((resolve,reject)=>{
+    const req = indexedDB.open('shopPnLFileDB', 1);
+    req.onupgradeneeded = ()=> req.result.createObjectStore('handles');
+    req.onsuccess = ()=> resolve(req.result);
+    req.onerror = ()=> reject(req.error);
+  });
+}
+async function idbSetHandle(handle){
+  try{
+    const db = await idbOpen();
+    return new Promise((resolve,reject)=>{
+      const tx = db.transaction('handles','readwrite');
+      tx.objectStore('handles').put(handle, 'fileHandle');
+      tx.oncomplete = ()=>resolve();
+      tx.onerror = ()=>reject(tx.error);
+    });
+  }catch(err){ /* ignore */ }
+}
+async function idbGetHandle(){
+  try{
+    const db = await idbOpen();
+    return new Promise((resolve,reject)=>{
+      const tx = db.transaction('handles','readonly');
+      const req = tx.objectStore('handles').get('fileHandle');
+      req.onsuccess = ()=>resolve(req.result || null);
+      req.onerror = ()=>reject(req.error);
+    });
+  }catch(err){ return null; }
+}
+
+async function linkJsonFile(){
+  if(!FS_SUPPORTED){ toast("This browser doesn't support direct file saving — use Download/Restore Backup instead"); return; }
+  try{
+    fileHandle = await window.showSaveFilePicker({
+      suggestedName: `${data.shopName.replace(/\s+/g,'_')}_PnL_Data.json`,
+      types: [{ description:'JSON File', accept:{'application/json':['.json']} }]
+    });
+    await idbSetHandle(fileHandle);
+    await writeToFile();
+    updateFileStatus();
+    toast('Linked! Data now auto-saves to this file');
+  }catch(err){ if(err.name!=='AbortError') toast('Could not link file'); }
+}
+
+async function openJsonFile(){
+  if(!FS_SUPPORTED){ toast("This browser doesn't support direct file access — use Restore Backup instead"); return; }
+  try{
+    const [handle] = await window.showOpenFilePicker({
+      types: [{ description:'JSON File', accept:{'application/json':['.json']} }]
+    });
+    const file = await handle.getFile();
+    const text = await file.text();
+    const parsed = JSON.parse(text);
+    if(!parsed.sales || !parsed.purchases || !parsed.expenses){ toast('Invalid data file'); return; }
+    data = parsed;
+    localStorage.setItem(DB_KEY, JSON.stringify(data));
+    fileHandle = handle;
+    await idbSetHandle(fileHandle);
+    initApp();
+    updateFileStatus();
+    toast('Loaded — future changes will auto-save to this file');
+  }catch(err){ if(err.name!=='AbortError') toast('Could not open file'); }
+}
+
+async function writeToFile(){
+  if(!fileHandle) return;
+  try{
+    let perm = await fileHandle.queryPermission({mode:'readwrite'});
+    if(perm !== 'granted'){
+      perm = await fileHandle.requestPermission({mode:'readwrite'});
+      if(perm !== 'granted') return;
+    }
+    const writable = await fileHandle.createWritable();
+    await writable.write(JSON.stringify(data, null, 2));
+    await writable.close();
+  }catch(err){ console.warn('Auto-save to file failed', err); }
+}
+
+async function tryRestoreHandle(){
+  if(!FS_SUPPORTED) return;
+  try{
+    const handle = await idbGetHandle();
+    if(handle){
+      const perm = await handle.queryPermission({mode:'readwrite'});
+      if(perm === 'granted'){ fileHandle = handle; }
+    }
+  }catch(err){ /* ignore */ }
+  updateFileStatus();
+}
+
+function updateFileStatus(){
+  const el = document.getElementById('fileStatus');
+  if(!el) return;
+  if(fileHandle){
+    el.textContent = '✅ Auto-saving to: ' + (fileHandle.name || 'linked file');
+    el.style.color = 'var(--accent)';
+  } else if(FS_SUPPORTED){
+    el.textContent = '⚠️ Not linked to a file yet — click "Link / Create JSON File" below';
+    el.style.color = 'var(--muted)';
+  } else {
+    el.textContent = "⚠️ Your browser doesn't support direct file saving — use manual backup below";
+    el.style.color = 'var(--muted)';
+  }
+}
+</script>
+</body>
+</html>
